@@ -6,25 +6,54 @@ import createError from "http-errors";
 import morgan from "morgan";
 import path from "path";
 import fs from "fs";
-
 import favicon from "serve-favicon";
 import { Server } from 'socket.io';
 import "./v1/config/env.config.js";
 
+// Routes
 import { authRoutes, userRoute } from "./v1/routes/index.js";
 import videoRoutes from "./v1/routes/videoRoutes.js";
-// New
-import OpenAI from "openai";
-
-import { PrismaClient } from "@prisma/client";
-import { app, server } from "./socket.js";
+import chatbotRoutes from "./v1/routes/chatbot.js";
 import bookRoutes from './v1/routes/books.js';
 import chatRoutes from './v1/routes/chat.js';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import groupChatRoutes from './v1/routes/groupChat.js';
+import geminiRoutes from './v1/routes/gemini.js';
 
+// AI Services
+import OpenAI from "openai";
+import {
+  GoogleGenerativeAI,
+  HarmCategory,
+  HarmBlockThreshold,
+} from "@google/generative-ai";
+
+// Database
+import { PrismaClient } from "@prisma/client";
+import { app, server } from "./socket.js";
+
+// Initialize OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY, // This is also the default, can be omitted
 });
+
+// Import Gemini AI
+// Initialize Gemini API
+const geminiApiKey = process.env.GEMINI_API_KEY;
+const geminiAI = new GoogleGenerativeAI(geminiApiKey);
+
+// Get the model and configure it
+const geminiModel = geminiAI.getGenerativeModel({
+  model: "gemini-1.5-flash",
+});
+
+// Generation configuration
+const geminiConfig = {
+  temperature: 1,
+  topP: 0.95,
+  topK: 64,
+  maxOutputTokens: 8192,
+  responseMimeType: "text/plain",
+};
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // Limit each IP to 1000 requests per `window` (here, per 15 minutes)
@@ -100,6 +129,9 @@ app.all("/", (req, res, next) => {
   res.send({ message: "API is Up and Running on render 😎🚀" });
 });
 
+// Routes
+app.use('/api/v1/chatbot', chatbotRoutes);
+
 const apiVersion = "v1";
 
 // Routes
@@ -107,46 +139,76 @@ app.use(`/${apiVersion}/auth`, authRoutes);
 app.use(`/${apiVersion}/user`, userRoute);
 app.use(`/${apiVersion}/video`, videoRoutes);
 
-const apiKey = process.env.GEMINI_API_KEY;
+// Initialize Gemini with proper error handling
+const apiKey = process.env.GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(apiKey);
 
-const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
-});
+// Validate API key
+if (!apiKey || apiKey === '') {
+  console.warn("⚠️ WARNING: No Gemini API key provided in app.js. This will affect complexity analysis.");
+}
 
+// Basic generation config
 const generationConfig = {
-  temperature: 1,
+  temperature: 0.7,
   topP: 0.95,
-  topK: 64,
-  maxOutputTokens: 8192,
-  responseMimeType: "text/plain",
+  topK: 40,
+  maxOutputTokens: 1024,
 };
 
+// Complexity analysis endpoint
 app.post(`/find-complexity`, async (req, res) => {
   try {
-    const {prompt} =req.body;
-     const chatSession = model.startChat({
-    generationConfig,
-     
-    history: [
+    const { prompt } = req.body;
     
-    ],
-  });
-  const result = await chatSession.sendMessage(prompt);
-  console.log(result.response.text())
-    return res.status(200).json({
-      success: true,
-      data: JSON.stringify(result.response.text()),
+    // Verify API key is configured
+    if (!geminiApiKey || geminiApiKey === '') {
+      return res.status(500).json({
+        success: false,
+        error: 'Gemini API key is not configured or invalid'
+      });
+    }
+
+    // Start a chat session with the model
+    const chatSession = geminiModel.startChat({
+      generationConfig: geminiConfig,
+      history: [],
     });
+
+    try {
+      // Send the message and get the response
+      const result = await chatSession.sendMessage(prompt);
+      const response = result.response.text();
+      
+      return res.status(200).json({
+        success: true,
+        data: JSON.stringify(response)
+      });
+
+    } catch (error) {
+      console.error("Complexity analysis generation error:", error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to analyze text complexity',
+        details: error.message
+      });
+    }
   } catch (error) {
-    console.log(error);
+    console.error("Complexity analysis error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to process request",
+      details: error.message
+    });
   }
 });
 
 // Add new routes
 app.use('/api/books', bookRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/group-chat', groupChatRoutes);
 app.use('/api/videos', videoRoutes);
+app.use('/api/gemini', geminiRoutes);
 
 // Serve static files from the uploads directory - make sure the path is correct
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
@@ -165,6 +227,55 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
     }
   }
 }));
+
+// Add debug test endpoint for groups
+app.get('/api/test-groups', async (req, res) => {
+  try {
+    console.log('DEBUG: Direct test endpoint for groups called');
+    
+    const prisma = new PrismaClient();
+    
+    // Get all conversations
+    const conversations = await prisma.conversation.findMany({
+      include: {
+        messages: true
+      }
+    });
+    
+    // Find conversations with 'group' receiverId messages
+    const groupConversations = conversations.filter(conv => 
+      conv.messages.some(msg => msg.receiverId === 'group')
+    );
+    
+    console.log(`DEBUG: Found ${groupConversations.length} group conversations directly`);
+    
+    // Format groups for response
+    const groups = groupConversations.map(group => {
+      // Find first message with 'group created by' to extract name
+      const creationMessage = group.messages.find(msg => 
+        msg.receiverId === 'group' && msg.message.includes('group created by')
+      );
+      
+      // Extract group name from message
+      const groupName = creationMessage
+        ? creationMessage.message.split('group created by')[0].trim()
+        : 'Group Chat';
+      
+      return {
+        id: group.id,
+        name: groupName,
+        participants: group.participantIds,
+        messages: group.messages.filter(msg => msg.receiverId === 'group'),
+        updatedAt: group.updatedAt
+      };
+    });
+    
+    res.json(groups);
+  } catch (error) {
+    console.error('Error in test-groups endpoint:', error);
+    res.status(500).json({ error: 'Failed to fetch test groups' });
+  }
+});
 
 // 404 Handler
 app.use((req, res, next) => {

@@ -131,51 +131,52 @@ const Landing = () => {
     console.log(value);
   };
   return (
-    <div className=" bg-background text-center">
+    <div className="min-h-screen bg-[#f0fdf4] text-center">
       <section>
         <div
-          className="cursor-pointer w-[120px] h-[120px] rounded-full  fixed bottom-1"
-          onClick={() => {
-            setChatbot(true);
-          }}
+          className="cursor-pointer w-16 h-16 fixed bottom-6 right-6 z-50 transition-transform hover:scale-105"
+          onClick={() => setChatbot(true)}
         >
-          <button>
-            <img className="w-full" src={Chatbot} />
+          <button className="w-full h-full rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
+            <img className="w-full h-full object-cover" src={Chatbot} alt="Chat Assistant" />
           </button>
         </div>
         <div
           className={`${
             chatbot ? "" : "hidden"
-          } w-[300px] h-[300px] bg-green-100 rounded-lg fixed bottom-24 p-3 left-24`}
+          } w-[350px] h-[400px] bg-white rounded-xl fixed bottom-24 right-6 p-4 shadow-xl border border-emerald-100 z-40`}
         >
-          <div className="">
+          <div className="flex justify-between items-center border-b border-emerald-100 pb-3">
+            <h3 className="text-lg font-semibold text-emerald-800">Chat Assistant</h3>
             <ImCross
-              className=""
-              onClick={() => {
-                setChatbot(false);
-              }}
+              className="text-emerald-600 hover:text-emerald-800 cursor-pointer transition-colors"
+              onClick={() => setChatbot(false)}
             />
           </div>
-          <div className="px-5 w-full h-3/4 my-2 border-2 border-gray-500 p-2 overflow-y-auto gap-2">
+          <div className="flex-1 overflow-y-auto my-4 space-y-4 px-2 h-[300px]">
             {answer && (
-              <div className="chat-message">
-                <strong>Saathi:</strong> {answer}
+              <div className="bg-emerald-50 p-3 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white font-semibold">A</div>
+                  <strong className="text-emerald-700">Assistant</strong>
+                </div>
+                <p className="text-gray-700 ml-10">{answer}</p>
               </div>
             )}
           </div>
           <form
             onSubmit={handleSubmit}
-            className="space-x-2  font-comf flex-row-between border-2 border-gray-500 px-2 py-1 rounded-md"
+            className="flex items-center gap-2 bg-emerald-50 p-3 rounded-lg mt-auto border border-emerald-100"
           >
             <input
               type="text"
               placeholder="Search for the meeting..."
-              className="w-full outline-none  bg-green-100"
+              className="flex-1 bg-transparent outline-none text-gray-700 placeholder-emerald-400"
               value={question}
               onChange={handleQuestionChange}
             />
 
-            <button type="submit" className="">
+            <button type="submit" className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors">
               {loading ? (
                 <h1>
                   <LoaderIcon />
@@ -189,10 +190,11 @@ const Landing = () => {
       </section>
 
       <section className="fixed inset-x-0 mx-auto w-full custom-navbar-width z-10 py-5 ">
-        <nav className="bg-white text-primary  lg:flex hidden flex-row justify-between px-5 py-1  rounded-2xl shadow-md items-center text-para  z-10 border-nav">
+        <nav className="bg-white/95 backdrop-blur-sm lg:flex hidden flex-row justify-between px-6 py-4 rounded-xl shadow-lg items-center z-10 transition-all duration-300 hover:shadow-xl">
           <div className="mx-2 w-[200px]">
-            <Link to="" className="text-5xl font-right ">
-              Code<span className="text-theme">Blenders</span>
+            <Link to="" className="text-3xl font-bold">
+              <span className="bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent">Code</span>
+              <span className="text-emerald-700">Blenders</span>
             </Link>
           </div>
 
@@ -234,7 +236,7 @@ const Landing = () => {
             <LanguageSelector />
             {user ? (
               <button
-                className=" primary-btn "
+                className="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors shadow-md hover:shadow-lg"
                 onClick={() => {
                   localStorage.removeItem("token");
                   navigate("/login");
@@ -288,10 +290,16 @@ const Landing = () => {
         </section>
       )}
 
-      <section style={{ backgroundImage: `url(${primaryImage})` }}>
-        <div className="primary-container md:w-2/3 mx-auto gap-5 md:leading-10 leading-7 text-center  flex flex-col items-center justify-center h-[100vh] translate-y-14 relative ">
+      <section className="relative py-20 px-4 bg-gradient-to-b from-emerald-50 to-white">
+        <div className="absolute inset-0 z-0 opacity-10" style={{ 
+          backgroundImage: `url(${primaryImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}></div>
+        <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center justify-center gap-8 pt-20">
           {!sitestatus ? (
-            <div className="bg-red-500 p-3 w-45 flex flex-row items-center justify-center rounded-xl">
+            <div className="bg-red-500/90 backdrop-blur-sm p-4 flex items-center gap-3 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-300">
               <CancelIcon
                 style={{
                   color: "white",
@@ -303,7 +311,7 @@ const Landing = () => {
               </h1>
             </div>
           ) : (
-            <div className="bg-green-500  p-3 w-45 flex flex-row items-center justify-center rounded-xl">
+            <div className="bg-emerald-500/90 backdrop-blur-sm p-4 flex items-center gap-3 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-300">
               <OutboundIcon
                 style={{
                   color: "white",

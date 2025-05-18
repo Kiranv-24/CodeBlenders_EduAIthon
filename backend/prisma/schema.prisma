@@ -86,6 +86,8 @@ model User {
   ChatMessages       ChatMessage[]
   videos             Video[]
   topics             Topic[]
+  groupChatMember    GroupChatMember[]
+  sentGroupMessages  GroupChatMessage[]
 }
 
 model MeetingParticipant {
@@ -251,4 +253,44 @@ model Topic {
   owner     User     @relation(fields: [userId], references: [id])
 
   @@map("topics")
+}
+
+// Group Chat Models
+model GroupChat {
+  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  avatar      String?            // URL to the group avatar
+  createdById String             @db.ObjectId
+  messages    GroupChatMessage[]
+  members     GroupChatMember[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model GroupChatMessage {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  content    String
+  senderId   String    @db.ObjectId
+  sender     User      @relation(fields: [senderId], references: [id])
+  groupId    String    @db.ObjectId
+  group      GroupChat @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  readBy     String[]  // Array of user IDs who have read this message
+  
+  @@index([groupId])
+  @@index([senderId])
+}
+
+model GroupChatMember {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @db.ObjectId
+  user      User      @relation(fields: [userId], references: [id])
+  groupId   String    @db.ObjectId
+  group     GroupChat @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  role      String    @default("member")  // "admin", "member"
+  joinedAt  DateTime  @default(now())
+  
+  @@unique([userId, groupId])
+  @@index([groupId])
 }

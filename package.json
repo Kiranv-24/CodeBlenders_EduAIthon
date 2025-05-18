@@ -1,7 +1,10 @@
 {
   "dependencies": {
+    "@mui/material": "^7.1.0",
     "@videosdk.live/react-sdk": "^0.3.4",
+    "axios": "^1.9.0",
     "lucide-react": "^0.445.0",
+    "openai": "^4.100.0",
     "react-pdf": "^9.2.1",
     "react-player": "^2.16.0"
   }
